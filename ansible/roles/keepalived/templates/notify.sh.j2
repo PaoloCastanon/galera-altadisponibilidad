@@ -1,0 +1,22 @@
+#!/bin/sh
+# Script de notificación de cambios de estado VRRP
+# Uso: notify.sh [MASTER|BACKUP|FAULT]
+
+STATE=$1
+DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+
+logger -t keepalived "[$DATETIME] Transición a estado: $STATE en $(hostname)"
+
+case $STATE in
+    "MASTER")
+        logger -t keepalived "Este nodo es ahora el MASTER - VIP activa"
+        ;;
+    "BACKUP")
+        logger -t keepalived "Este nodo es ahora BACKUP"
+        ;;
+    "FAULT")
+        logger -t keepalived "Estado FAULT detectado"
+        ;;
+esac
+
+exit 0

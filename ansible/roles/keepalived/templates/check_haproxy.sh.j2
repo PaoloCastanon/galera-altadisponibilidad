@@ -1,0 +1,15 @@
+#!/bin/sh
+# Health check script para HAProxy
+# Retorna 0 si HAProxy está funcionando, 1 si no
+
+# Verificar si el proceso de HAProxy está corriendo
+if ! pgrep -x haproxy > /dev/null; then
+    exit 1
+fi
+
+# Verificar si el puerto MySQL está escuchando
+if ! netstat -tuln 2>/dev/null | grep -q ':{{ haproxy_mysql_port }}'; then
+    exit 1
+fi
+
+exit 0

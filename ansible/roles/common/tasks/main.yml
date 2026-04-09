@@ -1,0 +1,57 @@
+---
+# Role common - Configuración base para todos los nodos (Debian Linux)
+
+- name: Actualizar cache de paquetes
+  apt:
+    update_cache: yes
+
+- name: Instalar paquetes comunes
+  apt:
+    name:
+      - vim
+      - curl
+      - wget
+      - net-tools
+      - dnsutils
+      - htop
+      - rsync
+      - ca-certificates
+      - bash
+    state: present
+    update_cache: yes
+
+- name: Configurar /etc/hosts con todos los nodos
+  blockinfile:
+    path: /etc/hosts
+    block: "{{ etc_hosts_entries }}"
+    marker: "# {mark} ANSIBLE MANAGED - HA CLUSTER"
+
+- name: Configurar timezone
+  copy:
+    content: "{{ timezone }}"
+    dest: /etc/timezone
+  notify: update timezone
+
+- name: Instalar chrony para sincronización NTP
+  apt:
+    name: chrony
+    state: present
+    update_cache: yes
+
+- name: Habilitar y arrancar chrony
+  service:
+    name: chrony
+    state: started
+    enabled: true
+
+- name: Desactivar swap (recomendado para Galera)
+  command: swapoff -a
+  changed_when: false
+  failed_when: false
+
+- name: Comentar swap en fstab
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s.*)$'
+    replace: '# \1'
+  failed_when: false

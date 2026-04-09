@@ -1,0 +1,40 @@
+# HAProxy Configuration for MariaDB Galera Cluster (Debian Linux)
+# Generado por Ansible
+
+global
+    log /dev/log local0
+    maxconn 256
+    user haproxy
+    group haproxy
+
+defaults
+    log     global
+    mode    tcp
+    option  tcplog
+    option  dontlognull
+    timeout connect 5000ms
+    timeout client  50000ms
+    timeout server  50000ms
+    retries 3
+
+# Stats Page
+listen stats
+    bind *:{{ haproxy_stats_port }}
+    mode http
+    stats enable
+    stats uri /stats
+    stats refresh 10s
+    stats auth {{ haproxy_stats_user }}:{{ haproxy_stats_password }}
+    stats admin if TRUE
+
+# MariaDB Galera Cluster - Read/Write
+listen mysql_galera
+    bind *:{{ haproxy_mysql_port }}
+    mode tcp
+    option tcpka
+    option mysql-check user {{ haproxy_mysql_user }}
+    balance roundrobin
+    default-server inter 3s fall 3 rise 2
+{% for node in db_nodes %}
+    server {{ node.name }} {{ node.ip }}:3306 check weight 1
+{% endfor %}

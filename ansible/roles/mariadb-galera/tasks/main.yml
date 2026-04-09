@@ -1,0 +1,151 @@
+---
+# Role mariadb-galera - Clúster Galera en Debian Linux
+
+- name: Instalar paquetes de MariaDB y Galera
+  apt:
+    name:
+      - mariadb-server
+      - mariadb-client
+      - galera-4
+      - rsync
+      - python3-pymysql
+    state: present
+    update_cache: yes
+
+- name: Detener MariaDB antes de configurar
+  service:
+    name: mariadb
+    state: stopped
+  failed_when: false
+
+- name: Crear directorios necesarios
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: mysql
+    group: mysql
+    mode: "0755"
+  loop:
+    - /var/lib/mysql
+    - /var/log/mysql
+    - /run/mysqld
+
+- name: Inicializar MariaDB si es necesario
+  command: mysql_install_db --user=mysql --datadir=/var/lib/mysql --sql-mode=""
+  args:
+    creates: /var/lib/mysql/mysql
+  become: yes
+
+- name: Asegurar permisos correctos en /var/lib/mysql
+  file:
+    path: /var/lib/mysql
+    owner: mysql
+    group: mysql
+    mode: "0755"
+    recurse: yes
+
+- name: Configurar Galera cluster
+  template:
+    src: galera.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/60-galera.cnf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Crear archivo de configuración principal
+  template:
+    src: mariadb-server.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/60-server.cnf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Habilitar MariaDB al inicio
+  service:
+    name: mariadb
+    enabled: true
+
+# Bootstrap: Solo el primer nodo inicia el clúster
+- name: Bootstrap del clúster Galera (primer nodo)
+  block:
+    - name: Iniciar clúster Galera (bootstrap)
+      command: galera_new_cluster
+      environment:
+        PATH: "/usr/bin:/usr/sbin:/bin:/sbin"
+
+    - name: Esperar que MariaDB esté disponible
+      wait_for:
+        port: 3306
+        delay: 5
+        timeout: 120
+  when:
+    - inventory_hostname == groups['databases'][0]
+    - galera_bootstrap | bool
+
+# Nodos secundarios se unen al clúster
+- name: Iniciar MariaDB en nodos secundarios
+  service:
+    name: mariadb
+    state: started
+  when: inventory_hostname != groups['databases'][0]
+
+- name: Esperar que MariaDB esté disponible (secundarios)
+  wait_for:
+    port: 3306
+    delay: 10
+    timeout: 120
+  when: inventory_hostname != groups['databases'][0]
+
+# Configuración de seguridad (solo primer nodo)
+- name: Configurar root password
+  command: >
+    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mariadb_root_password }}';"
+  when: inventory_hostname == groups['databases'][0]
+  failed_when: false
+  changed_when: false
+
+- name: Crear archivo .my.cnf para root
+  template:
+    src: my.cnf.j2
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Crear usuario para HAProxy health check
+  command: >
+    mysql -e "CREATE USER IF NOT EXISTS '{{ haproxy_mysql_user }}'@'%' IDENTIFIED BY '';
+    ALTER USER '{{ haproxy_mysql_user }}'@'%' IDENTIFIED BY '' REQUIRE NONE;
+    GRANT USAGE ON *.* TO '{{ haproxy_mysql_user }}'@'%';
+    FLUSH PRIVILEGES;"
+  when: inventory_hostname == groups['databases'][0]
+  failed_when: false
+  changed_when: false
+
+- name: Crear base de datos de prueba
+  command: mysql -e "CREATE DATABASE IF NOT EXISTS test_ha;"
+  when: inventory_hostname == groups['databases'][0]
+  failed_when: false
+  changed_when: false
+
+- name: Crear tabla de prueba
+  command: >
+    mysql -e "CREATE TABLE IF NOT EXISTS test_ha.cluster_test (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      hostname VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );"
+  when: inventory_hostname == groups['databases'][0]
+  failed_when: false
+  changed_when: false
+
+- name: Verificar estado del clúster
+  command: mysql -e "SHOW STATUS LIKE 'wsrep_cluster_size';"
+  register: galera_status
+  changed_when: false
+  failed_when: false
+
+- name: Mostrar estado del clúster
+  debug:
+    msg: "{{ galera_status.stdout }}"
+

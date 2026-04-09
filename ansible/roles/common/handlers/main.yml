@@ -1,0 +1,5 @@
+---
+# Handlers para role common (Debian/systemd)
+
+- name: update timezone
+  command: timedatectl set-timezone {{ timezone }}

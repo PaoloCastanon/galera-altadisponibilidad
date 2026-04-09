@@ -1,0 +1,10 @@
+---
+# Variables por defecto para role mariadb-galera
+
+galera_cluster_name: "galera_cluster"
+galera_sst_method: "rsync"
+mariadb_root_password: "root_password"
+mariadb_bind_address: "0.0.0.0"
+haproxy_mysql_user: "haproxy_check"
+haproxy_mysql_password: "haproxy_check_pass"
+galera_bootstrap: false

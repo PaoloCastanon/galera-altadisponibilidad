@@ -1,0 +1,43 @@
+# Keepalived Configuration
+# Generado por Ansible
+
+global_defs {
+    router_id {{ inventory_hostname }}
+    script_user root
+    enable_script_security
+}
+
+vrrp_script check_haproxy {
+    script "/etc/keepalived/scripts/check_haproxy.sh"
+    interval 2
+    weight -20
+    fall 3
+    rise 2
+}
+
+vrrp_instance {{ keepalived_vrrp_instance }} {
+    state {% if inventory_hostname == groups['loadbalancers'][0] %}MASTER{% else %}BACKUP{% endif %}
+
+    interface {{ vip_interface }}
+    virtual_router_id {{ keepalived_virtual_router_id }}
+    priority {% for node in lb_nodes %}{% if node.name == inventory_hostname %}{{ node.priority }}{% endif %}{% endfor %}
+
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass {{ keepalived_auth_pass }}
+    }
+
+    virtual_ipaddress {
+        {{ vip_address }}/{{ vip_netmask }} dev {{ vip_interface }}
+    }
+
+    track_script {
+        check_haproxy
+    }
+
+    notify_master "/etc/keepalived/scripts/notify.sh MASTER"
+    notify_backup "/etc/keepalived/scripts/notify.sh BACKUP"
+    notify_fault "/etc/keepalived/scripts/notify.sh FAULT"
+}

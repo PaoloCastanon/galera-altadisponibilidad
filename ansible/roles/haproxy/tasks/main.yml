@@ -1,0 +1,43 @@
+---
+# Role haproxy - Balanceador de carga para MariaDB Galera (Debian Linux)
+
+- name: Instalar HAProxy
+  apt:
+    name: haproxy
+    state: present
+    update_cache: yes
+
+- name: Crear directorio de errores de HAProxy
+  file:
+    path: /etc/haproxy/errors
+    state: directory
+    mode: "0755"
+
+- name: Configurar HAProxy
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart haproxy
+
+- name: Habilitar HAProxy en Debian
+  lineinfile:
+    path: /etc/default/haproxy
+    regexp: '^ENABLED='
+    line: 'ENABLED=1'
+    create: yes
+
+- name: Arrancar HAProxy
+  service:
+    name: haproxy
+    state: restarted
+    enabled: true
+
+- name: Verificar que HAProxy está escuchando
+  wait_for:
+    port: "{{ haproxy_mysql_port }}"
+    host: "{{ ansible_host | default('127.0.0.1') }}"
+    delay: 5
+    timeout: 60

@@ -1,0 +1,32 @@
+# Configuración de Galera Cluster para Debian Linux
+# Generado por Ansible
+
+[mysqld]
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+bind-address={{ mariadb_bind_address }}
+
+# Galera Provider Configuration
+wsrep_on=ON
+wsrep_provider=/usr/lib/galera/libgalera_smm.so
+
+# Galera Cluster Configuration
+wsrep_cluster_name="{{ galera_cluster_name }}"
+wsrep_cluster_address="gcomm://{% for node in db_nodes %}{{ node.ip }}{% if not loop.last %},{% endif %}{% endfor %}"
+
+# Galera Synchronization Configuration
+wsrep_sst_method={{ galera_sst_method }}
+
+# Galera Node Configuration
+wsrep_node_address="{{ ansible_host }}"
+wsrep_node_name="{{ inventory_hostname }}"
+
+# InnoDB Configuration (ajustado para poca RAM)
+innodb_buffer_pool_size=64M
+innodb_flush_log_at_trx_commit=0
+innodb_log_file_size=16M
+
+# Logging
+log_error=/var/log/mysql/error.log
+log_warnings=2

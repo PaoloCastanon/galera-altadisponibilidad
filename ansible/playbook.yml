@@ -1,0 +1,93 @@
+---
+# Playbook Principal - Arquitectura de Alta Disponibilidad
+# MariaDB Galera + HAProxy + Keepalived
+
+- name: Configuración base en todos los nodos
+  hosts: all
+  become: yes
+  roles:
+    - common
+
+- name: Configurar clúster MariaDB Galera
+  hosts: databases
+  become: yes
+  serial: 1 # Ejecutar uno por uno para bootstrap ordenado
+  pre_tasks:
+    - name: Detectar si hay algún nodo DB activo
+      wait_for:
+        host: "{{ item.ip }}"
+        port: 3306
+        timeout: 1
+        connect_timeout: 1
+      loop: "{{ db_nodes }}"
+      delegate_to: localhost
+      become: false
+      register: db_port_checks
+      ignore_errors: true
+      run_once: true
+
+    - name: Definir si se requiere bootstrap
+      set_fact:
+        galera_bootstrap: "{{ (db_port_checks.results | selectattr('failed', 'equalto', false) | list | length) == 0 }}"
+      run_once: true
+  roles:
+    - mariadb-galera
+
+- name: Configurar balanceadores de carga HAProxy
+  hosts: loadbalancers
+  become: yes
+  roles:
+    - haproxy
+
+- name: Configurar VIP con Keepalived
+  hosts: loadbalancers
+  become: yes
+  roles:
+    - keepalived
+
+- name: Verificación final del clúster
+  hosts: databases[0]
+  become: yes
+  tasks:
+    - name: Verificar estado del clúster Galera
+      mysql_query:
+        query: "SHOW STATUS LIKE 'wsrep_cluster_size'"
+      register: cluster_size
+
+    - name: Mostrar tamaño del clúster
+      debug:
+        msg: "Nodos en el clúster Galera: {{ cluster_size.query_result[0][0].Value }}"
+
+    - name: Verificar estado de sincronización
+      mysql_query:
+        query: "SHOW STATUS LIKE 'wsrep_local_state_comment'"
+      register: sync_status
+
+    - name: Mostrar estado de sincronización
+      debug:
+        msg: "Estado de sincronización: {{ sync_status.query_result[0][0].Value }}"
+
+- name: Verificación de balanceadores
+  hosts: loadbalancers[0]
+  become: yes
+  tasks:
+    - name: Verificar VIP
+      command: ip addr show {{ vip_interface }}
+      register: vip_check
+      changed_when: false
+
+    - name: Mostrar estado de VIP
+      debug:
+        msg: "{{ vip_check.stdout }}"
+
+    - name: Verificar HAProxy backends
+      uri:
+        url: "http://localhost:{{ haproxy_stats_port }}/stats;csv"
+        user: "{{ haproxy_stats_user }}"
+        password: "{{ haproxy_stats_password }}"
+        return_content: yes
+      register: haproxy_stats
+
+    - name: Mostrar resumen de HAProxy
+      debug:
+        msg: "HAProxy stats disponibles en http://{{ ansible_host }}:{{ haproxy_stats_port }}/stats"

@@ -1,0 +1,15 @@
+---
+# Handlers para role keepalived (Debian/systemd)
+
+- name: restart keepalived
+  service:
+    name: keepalived
+    state: restarted
+
+- name: reload keepalived
+  service:
+    name: keepalived
+    state: restarted
+
+- name: apply sysctl
+  command: sysctl -p

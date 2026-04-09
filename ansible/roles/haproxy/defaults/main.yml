@@ -1,0 +1,7 @@
+---
+# Variables por defecto para role haproxy
+
+haproxy_stats_port: 8080
+haproxy_stats_user: "admin"
+haproxy_stats_password: "admin123"
+haproxy_mysql_port: 3306

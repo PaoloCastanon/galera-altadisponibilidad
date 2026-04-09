@@ -1,0 +1,3 @@
+---
+# Variables por defecto para role common
+timezone: "America/Santiago"

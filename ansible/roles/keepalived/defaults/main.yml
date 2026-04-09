@@ -1,0 +1,9 @@
+---
+# Variables por defecto para role keepalived
+
+vip_address: "192.168.122.10"
+vip_netmask: 24
+vip_interface: "ens3"
+keepalived_vrrp_instance: "VI_1"
+keepalived_virtual_router_id: 51
+keepalived_auth_pass: "keepalived"

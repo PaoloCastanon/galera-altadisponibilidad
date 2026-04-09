@@ -1,0 +1,7 @@
+---
+# Handlers para role mariadb-galera (Debian/systemd)
+
+- name: restart mariadb
+  service:
+    name: mariadb
+    state: restarted

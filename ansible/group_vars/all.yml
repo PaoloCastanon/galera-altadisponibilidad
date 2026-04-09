@@ -1,0 +1,55 @@
+# =============================================================================
+# Variables Globales - Arquitectura HA
+# =============================================================================
+
+# --- Direcciones IP ---
+vip_address: "192.168.122.10"
+vip_netmask: 24
+vip_interface: "ens3"  # Debian on libvirt uses ens3
+
+# --- Nodos ---
+lb_nodes:
+  - name: proxy1
+    ip: 192.168.122.11
+    priority: 101 # MASTER
+  - name: proxy2
+    ip: 192.168.122.12
+    priority: 100 # BACKUP
+
+db_nodes:
+  - name: galera1
+    ip: 192.168.122.21
+  - name: galera2
+    ip: 192.168.122.22
+  - name: galera3
+    ip: 192.168.122.23
+
+# --- MariaDB/Galera ---
+galera_cluster_name: "galera_cluster"
+galera_sst_method: "rsync"
+mariadb_root_password: "SecureR00tP@ss2024"
+mariadb_bind_address: "0.0.0.0"
+
+# Usuario para health checks de HAProxy
+haproxy_mysql_user: "haproxy_check"
+haproxy_mysql_password: ""
+
+# --- HAProxy ---
+haproxy_stats_port: 8080
+haproxy_stats_user: "admin"
+haproxy_stats_password: "admin123"
+haproxy_mysql_port: 3306
+
+# --- Keepalived ---
+keepalived_vrrp_instance: "VI_1"
+keepalived_virtual_router_id: 51
+keepalived_auth_pass: "k33p@liv3d"
+
+# --- Hosts comunes ---
+etc_hosts_entries: |
+  192.168.122.10 vip ha-mysql
+  192.168.122.11 proxy1
+  192.168.122.12 proxy2
+  192.168.122.21 galera1
+  192.168.122.22 galera2
+  192.168.122.23 galera3
