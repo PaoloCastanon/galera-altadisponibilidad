@@ -114,4 +114,4 @@ for s in $TARGET_SERVICES; do
 done
 
 echo -e "\n${BLUE}Verificación posterior recomendada:${NC}"
-echo "Ejecuta './scripts/test-ha.sh' o './scripts/verify-continuity.sh' para revisar el failover."
+echo "Ejecuta './scripts/verify-continuity.sh' para revisar el failover."
